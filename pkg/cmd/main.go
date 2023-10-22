@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"io"
 	"log"
-	"mime"
 	"net/http"
 	"os"
 
@@ -16,45 +15,36 @@ type Post struct {
 	Title, Content string
 }
 
-const blog = `
-	{{template post .}}
-`
-
-func mm(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		FixMimeTypes()
-
-		next.ServeHTTP(w, r)
-	})
-}
-
 func main() {
-	file, err := os.Open("index.html")
+	file, err := os.Open("./static/index.html")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	m := mux.NewRouter()
-	fs := http.FileServer(http.Dir("./src/"))
+	router := mux.NewRouter()
+	fs := http.FileServer(http.Dir("./static/"))
 
-	m.PathPrefix("/src/").Handler(http.StripPrefix("/src/", fs))
+	router.PathPrefix("/src/").Handler(http.StripPrefix("/src/", fs))
 
-	m.Use(loggingMiddleware)
+	router.Use(loggingMiddleware)
 	homepage, err := io.ReadAll(file)
 	if err != nil {
 		log.Fatal(err)
 	}
-	m.HandleFunc("/home", (func(w http.ResponseWriter, r *http.Request) {
-		w.Write(homepage)
-	}))
-	m.HandleFunc("/posts", handler)
-	http.Handle("/", m)
-	http.ListenAndServe(":7000", nil)
+	router.HandleFunc("/home", homeHandler(homepage))
+
+	router.HandleFunc("/posts", postsHandler)
+
+	http.Handle("/", router)
+
+	if err := http.ListenAndServe(":7000", nil); err != nil {
+		log.Fatal(err)
+	}
 }
 
-func handler(res http.ResponseWriter, req *http.Request) {
+func postsHandler(res http.ResponseWriter, req *http.Request) {
 
-	blogTemplate, err := template.ParseFiles("post.tmpl")
+	blogTemplate, err := template.ParseFiles("./pkg/templates/post.tmpl")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,17 +75,16 @@ func handler(res http.ResponseWriter, req *http.Request) {
 
 }
 
-func FixMimeTypes() {
-	err1 := mime.AddExtensionType(".js", "text/javascript")
-	if err1 != nil {
-		log.Printf("Error in mime js %s", err1.Error())
-	}
-
-	err2 := mime.AddExtensionType(".css", "text/css")
-	if err2 != nil {
-		log.Printf("Error in mime js %s", err2.Error())
+func homeHandler(homepage []byte) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, err := w.Write(homepage)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(err.Error()))
+		}
 	}
 }
+
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Do stuff here
