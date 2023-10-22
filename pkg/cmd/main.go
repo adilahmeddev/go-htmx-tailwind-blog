@@ -2,6 +2,8 @@ package main
 
 import (
 	_ "embed"
+	"fmt"
+	"goblog/pkg/posts"
 	"html/template"
 	"io"
 	"log"
@@ -10,10 +12,6 @@ import (
 
 	"github.com/gorilla/mux"
 )
-
-type Post struct {
-	Title, Content string
-}
 
 func main() {
 	file, err := os.Open("./static/index.html")
@@ -31,9 +29,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	storage := posts.MemoryStorage{}
 	router.HandleFunc("/home", homeHandler(homepage))
 
-	router.HandleFunc("/posts", postsHandler)
+	router.HandleFunc("/posts", GetPostsHandler(&storage)).Methods("GET")
+
+	router.HandleFunc("/posts/lorem", AddLoremPostsHandler(&storage)).Methods("POST")
 
 	http.Handle("/", router)
 
@@ -42,16 +44,12 @@ func main() {
 	}
 }
 
-func postsHandler(res http.ResponseWriter, req *http.Request) {
+func AddLoremPostsHandler(storage posts.Storage) func(http.ResponseWriter, *http.Request) {
+	return func(res http.ResponseWriter, req *http.Request) {
 
-	blogTemplate, err := template.ParseFiles("./pkg/templates/post.tmpl")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	post := Post{
-		Title: "First post pog",
-		Content: `        aliquet tempor justo. In hac
+		post := posts.Post{
+			Title: "First post pog",
+			Content: `        aliquet tempor justo. In hac
         habitasse platea dictumst. Interdum et malesuada fames ac ante ipsum primis in faucibus. In vehicula augue non
         ante finibus, a tincidunt enim elementum. Fusce ac justo diam. Suspendisse condimentum consectetur laoreet.
         Proin vel pellentesque est, non hendrerit lorem. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
@@ -68,11 +66,36 @@ func postsHandler(res http.ResponseWriter, req *http.Request) {
         enim. Sed bibendum justo ac vehicula dapibus. Praesent at vestibulum diam. Aliquam auctor porttitor lorem, a
         euismod nisi sollicitudin at. Sed quis ipsum ut massa fermentum vulputate nec a justo. In vitae ligula leo. In
 `,
-	}
-	if err := blogTemplate.ExecuteTemplate(res, "post", post); err != nil {
-		log.Fatal(err)
-	}
+		}
 
+		err := storage.Add(post)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+	}
+}
+
+func GetPostsHandler(storage posts.Storage) func(http.ResponseWriter, *http.Request) {
+	return func(res http.ResponseWriter, req *http.Request) {
+
+		blogTemplate, err := template.ParseFiles("./pkg/templates/posts.tmpl", "./pkg/templates/post.tmpl")
+		if err != nil {
+			log.Fatal(err)
+		}
+		allPosts, err := storage.GetAll()
+		if err != nil {
+			res.WriteHeader(500)
+			res.Write([]byte(err.Error()))
+		}
+		for _, post := range allPosts {
+			fmt.Println(post.Title)
+		}
+
+		if err := blogTemplate.ExecuteTemplate(res, "posts", map[string]interface{}{"Posts": allPosts}); err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 
 func homeHandler(homepage []byte) func(http.ResponseWriter, *http.Request) {

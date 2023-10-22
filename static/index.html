@@ -34,7 +34,9 @@
 
           <button
             class="block rounded-lg bg-indigo-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring"
-            type="button">
+            type="button"
+            hx-post="posts/lorem"
+            hx-swap="none">
             Create Post
           </button>
         </div>
@@ -42,7 +44,7 @@
     </div>
   </header>
 
-  <div  hx-get="posts" hx-trigger="load" hx-swap="innerHTML" class="py-5 flex flex-col items-center divide-y divide-slate-200">
+  <div  hx-get="posts" hx-trigger="every 0.25s" hx-swap="innerHTML" class="py-5 flex flex-col items-center divide-y divide-slate-200">
     <div>
         placeholder
       </div>
