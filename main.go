@@ -1,10 +1,15 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
+	_ "embed"
 	"html/template"
+	"io"
 	"log"
+	"mime"
+	"net/http"
+	"os"
+
+	"github.com/gorilla/mux"
 )
 
 type Post struct {
@@ -15,7 +20,39 @@ const blog = `
 	{{template post .}}
 `
 
+func mm(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		FixMimeTypes()
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
+	file, err := os.Open("index.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	m := mux.NewRouter()
+	fs := http.FileServer(http.Dir("./src/"))
+
+	m.PathPrefix("/src/").Handler(http.StripPrefix("/src/", fs))
+
+	m.Use(loggingMiddleware)
+	homepage, err := io.ReadAll(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+	m.HandleFunc("/home", (func(w http.ResponseWriter, r *http.Request) {
+		w.Write(homepage)
+	}))
+	m.HandleFunc("/posts", handler)
+	http.Handle("/", m)
+	http.ListenAndServe(":7000", nil)
+}
+
+func handler(res http.ResponseWriter, req *http.Request) {
 
 	blogTemplate, err := template.ParseFiles("post.tmpl")
 	if err != nil {
@@ -42,9 +79,28 @@ func main() {
         euismod nisi sollicitudin at. Sed quis ipsum ut massa fermentum vulputate nec a justo. In vitae ligula leo. In
 `,
 	}
-	buff := bytes.Buffer{}
-	if err := blogTemplate.ExecuteTemplate(&buff, "post", post); err != nil {
+	if err := blogTemplate.ExecuteTemplate(res, "post", post); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%v\n", buff.String())
+
+}
+
+func FixMimeTypes() {
+	err1 := mime.AddExtensionType(".js", "text/javascript")
+	if err1 != nil {
+		log.Printf("Error in mime js %s", err1.Error())
+	}
+
+	err2 := mime.AddExtensionType(".css", "text/css")
+	if err2 != nil {
+		log.Printf("Error in mime js %s", err2.Error())
+	}
+}
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Do stuff here
+		log.Println(r.RequestURI)
+		// Call the next handler, which can be another middleware in the chain, or the final handler.
+		next.ServeHTTP(w, r)
+	})
 }
