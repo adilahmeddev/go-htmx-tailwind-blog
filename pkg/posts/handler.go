@@ -5,10 +5,14 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 type PostsHandler interface {
 	GetAll(res http.ResponseWriter, req *http.Request)
+	Get(res http.ResponseWriter, req *http.Request)
 	PostLorem(res http.ResponseWriter, req *http.Request)
 }
 
@@ -18,7 +22,6 @@ type Handler struct {
 }
 
 func NewHandler(storage Storage, blogTemplate *template.Template) *Handler {
-
 	return &Handler{
 		storage:  storage,
 		template: blogTemplate,
@@ -36,6 +39,25 @@ func (h *Handler) GetAll(res http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := h.template.ExecuteTemplate(res, "posts", map[string]interface{}{"Posts": allPosts}); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (h *Handler) Get(res http.ResponseWriter, req *http.Request) {
+	vars := mux.Vars(req)
+	idString := vars["id"]
+
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		res.Write([]byte(err.Error()))
+	}
+
+	post, err := h.storage.Get(id)
+	if err != nil {
+		res.Write([]byte(err.Error()))
+	}
+
+	if err := h.template.ExecuteTemplate(res, "post", post); err != nil {
 		log.Fatal(err)
 	}
 }
