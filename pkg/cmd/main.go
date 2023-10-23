@@ -40,6 +40,8 @@ func main() {
 
 	router.HandleFunc("/posts", postsHandler.GetAll).Methods("GET")
 
+	router.HandleFunc("/post/{id}", postsHandler.Get).Methods("GET")
+
 	router.HandleFunc("/posts/lorem", postsHandler.PostLorem).Methods("POST")
 
 	http.Handle("/", router)
