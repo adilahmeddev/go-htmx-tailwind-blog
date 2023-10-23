@@ -2,9 +2,9 @@ package posts
 
 import (
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
-	"text/template"
 )
 
 type PostsHandler interface {

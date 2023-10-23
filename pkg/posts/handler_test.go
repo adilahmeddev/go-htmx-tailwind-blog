@@ -2,13 +2,13 @@ package posts_test
 
 import (
 	"goblog/pkg/posts"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"text/template"
 )
 
 func TestGetAll(t *testing.T) {
