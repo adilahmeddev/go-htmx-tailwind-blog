@@ -7,21 +7,25 @@ import (
 	"text/template"
 )
 
-type Handler struct {
-	storage Storage
+type PostsHandler interface {
+	GetAll(res http.ResponseWriter, req *http.Request)
+	PostLorem(res http.ResponseWriter, req *http.Request)
 }
 
-func NewHandler(storage Storage) *Handler {
+type Handler struct {
+	storage  Storage
+	template *template.Template
+}
+
+func NewHandler(storage Storage, blogTemplate *template.Template) *Handler {
+
 	return &Handler{
-		storage: storage,
+		storage:  storage,
+		template: blogTemplate,
 	}
 }
 
 func (h *Handler) GetAll(res http.ResponseWriter, req *http.Request) {
-	blogTemplate, err := template.ParseFiles("./pkg/templates/posts.tmpl", "./pkg/templates/post.tmpl")
-	if err != nil {
-		log.Fatal(err)
-	}
 	allPosts, err := h.storage.GetAll()
 	if err != nil {
 		res.WriteHeader(500)
@@ -31,7 +35,7 @@ func (h *Handler) GetAll(res http.ResponseWriter, req *http.Request) {
 		fmt.Println(post.Title)
 	}
 
-	if err := blogTemplate.ExecuteTemplate(res, "posts", map[string]interface{}{"Posts": allPosts}); err != nil {
+	if err := h.template.ExecuteTemplate(res, "posts", map[string]interface{}{"Posts": allPosts}); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -62,5 +66,5 @@ func (h *Handler) PostLorem(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	res.WriteHeader(http.StatusCreated)
 }

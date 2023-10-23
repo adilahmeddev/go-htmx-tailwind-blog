@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"goblog/pkg/posts"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -29,7 +30,12 @@ func main() {
 	}
 
 	storage := posts.MemoryStorage{}
-	postsHandler := posts.NewHandler(&storage)
+
+	blogTemplate, err := template.ParseFiles("./pkg/templates/posts.tmpl", "./pkg/templates/post.tmpl")
+	if err != nil {
+		log.Fatal(err)
+	}
+	postsHandler := posts.NewHandler(&storage, blogTemplate)
 	router.HandleFunc("/home", homeHandler(homepage))
 
 	router.HandleFunc("/posts", postsHandler.GetAll).Methods("GET")
